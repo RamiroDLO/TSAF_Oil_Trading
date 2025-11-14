@@ -1,0 +1,10 @@
+# Install once if needed:
+
+install.packages(c("quantmod", "tidyverse", "tseries", "zoo", "PerformanceAnalytics"))
+
+
+library(quantmod)            # download data from Yahoo
+library(tidyverse)           # data manipulation + plotting
+library(tseries)             # ADF test
+library(zoo)                 # rolling mean / sd
+library(PerformanceAnalytics) # performance metrics

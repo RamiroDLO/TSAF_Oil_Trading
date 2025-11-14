@@ -1,0 +1,15 @@
+
+# Stationarity: ADF tests
+
+# ADF test on log prices -- RESULTS IN NON-STATIONARITY
+adf.test(log_prices$XOM)
+adf.test(log_prices$CVX)
+
+# ADF test on returns -- RESULTS IN STATIONARITY
+adf.test(returns$XOM)
+adf.test(returns$CVX)
+
+"""
+ADF on prices → p-value > 0.05 → cannot reject unit root → non-stationary
+ADF on returns → p-value < 0.05 → reject unit root → stationary
+"""

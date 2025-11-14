@@ -1,0 +1,27 @@
+# data_acquisition > data_pull.r
+
+From **yahoo finance** (library - quantmod) We pulled daily closing adjusted prices (X_price) and volume of shares traded (X_volume) for Exxon (NYSE: XOM) and Chevron (NYSE: CVX) going as far back as 2000. 
+
+- **N/A Handling**: Fill missing values with the mean of the previous 7 days
+
+- **Data Parity**:  Transformed daily _closing prices_ to logarithmic scale, to compare "apples to apples"
+
+- Daily returns 
+
+        Correlation of returns: +83.6 %
+
+Plot the indexes 
+
+
+# data_analysis > tsa_checks.r
+
+## Stationarity check:
+Augmented Dickey–Fuller (ADF) to logarithmnic prices and returns.
+
+For both XOM and CVX log-prices, the ADF p-values is bigger than the conf interval (0.05), so we cannot reject the null of a unit root (ie, the series is a random walk, what we want for a financial series)
+
+For log-returns, ADF p-values are below 0.05, indicating stationarity (I(0)).
+
+So, non-stational prices and stational returns require then a cointegration testing.
+
+Cointegration 

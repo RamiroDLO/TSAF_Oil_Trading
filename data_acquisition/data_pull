@@ -1,0 +1,40 @@
+# Get data from Yahoo
+symbols <- c("XOM", "CVX")
+getSymbols(symbols, src = "yahoo", from = "2000-01-01", to = "2025-01-01")
+
+# Extract adjusted closing prices and volumes
+data_pull <- merge(Ad(XOM), Vo(XOM), Ad(CVX), Vo(CVX))
+colnames(data_pull) <- c("XOM_price", "XOM_volume", "CVX_price", "CVX_volume")
+
+# N/A Handling: Fill missing values with the mean of the previous 7 days
+fill_prev7 <- function(x) na.aggregate(x, FUN = function(v) mean(tail(na.omit(v), 7)))
+
+#Convert to log prices
+prices <- data_pull[, c("XOM_price", "CVX_price")]
+log_prices <- log(prices[, c("XOM_price", "CVX_price")])
+
+#Calculate Daily Returns
+returns <- diff(log_prices)
+returns <- xts(apply(returns, 2, fill_prev7), order.by = index(returns))
+
+summary(returns)
+#Check for missing values
+nrow(returns)
+anyNA(returns)
+colSums(is.na(returns))
+summary(returns)
+cor(returns)
+
+#Indexing for plots
+indexed_prices <- prices / as.numeric(prices[1,]) * 100
+
+autoplot(as.zoo(indexed_prices), facets = NULL) + 
+  ggplot2::scale_color_manual(values = c("XOM_price" = "#ED1B2D", "CVX_price" = "#0050AA")
+  , labels = c("XOM" , "CVX" )) +
+  ggplot2::labs(title = "Normalized Prices (Rebased at 100 on 01/01/2010)", x = "", y = "") +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(size = 20, hjust = 0.5, face = "bold"),
+    legend.position = "top",
+    legend.title = ggplot2::element_blank(),
+    aspect.ratio = 0.4  # Makes x-axis longer, y-axis shorter (lower = wider)
+  )

@@ -24,4 +24,4 @@ For log-returns, ADF p-values are below 0.05, indicating stationarity (I(0)).
 
 So, non-stational prices and stational returns require then a cointegration testing.
 
-Cointegration 
+## Cointegration 

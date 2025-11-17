@@ -1,15 +1,48 @@
-
 # Stationarity: ADF tests
 
 # ADF test on log prices -- RESULTS IN NON-STATIONARITY
-adf.test(log_prices$XOM)
-adf.test(log_prices$CVX)
+adf.test(log_prices$SHEL)
+adf.test(log_prices$BP)
 
 # ADF test on returns -- RESULTS IN STATIONARITY
-adf.test(returns$XOM)
-adf.test(returns$CVX)
+adf.test(returns$SHEL)
+adf.test(returns$BP)
 
 """
 ADF on prices → p-value > 0.05 → cannot reject unit root → non-stationary
 ADF on returns → p-value < 0.05 → reject unit root → stationary
+
+Next: We want to check the relationship longer-term variables. Since there are only two variables, we are using the Engle-Granger analysis.
+
+The Engle-Granger two-step method involves:
+1. Regressing one non-stationary variable on another to obtain residuals.
+2. Testing the residuals for stationarity using the ADF test.
+
+The regression estimates β, the long-run equilibrium ratio between the two stocks
 """
+p1 <- as.numeric(log_prices$SHEL)
+p2 <- as.numeric(log_prices$BP)
+
+eg_model <- lm(p1 ~ p2)
+summary(eg_model)
+
+beta <- eg_model$coefficients[2]
+
+# Residuals = spread candidate
+spread <- eg_model$residuals
+spread_xts <- xts(spread, order.by = index(log_prices))
+
+adf.test(spread)
+
+# Remove NAs just to be safe
+spread_clean <- na.omit(spread_xts)
+
+# AR(1) model: s_t = mu + phi * s_{t-1} + error
+ar1_model <- arima(spread_clean, order = c(1, 0, 0))
+ar1_model
+
+phi <- ar1_model$coef["ar1"]
+
+# Half-life of mean reversion
+half_life <- -log(2) / log(abs(phi))
+half_life

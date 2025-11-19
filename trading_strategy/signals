@@ -1,0 +1,72 @@
+#the spread as a starting point.
+
+window <- 60   # rolling window for spread statistics
+
+spread_mean <- rollapply(spread, width = window, FUN = mean,
+                         align = "right", fill = NA)
+
+spread_sd   <- rollapply(spread, width = window, FUN = sd,
+                         align = "right", fill = NA)
+
+z <- (spread - spread_mean) / spread_sd
+
+"""
+ I have to choose  the rolling window for me to have enough history to trust my rolling mean and z value
+
+For each day in the dataset, we calculate the mean spread  an dthe volatily (standard deviation) .of the previous 60 days.
+
+My Z score is no more than the coeff of how many standard deviations away from the mean my current spread is.
+
+The quantitative finance literature ( Pole (2007), Gatev et al. (2006)) indicates that a good rule of thumb should be half life x 1.5  
+"""
+
+# Building the signals.
+"""
+A signal is simply an instruction to buy, sell, or hold a position.
+
++1 → open / keep a long spread position
+
+–1 → open / keep a short spread position
+
+0 → close position (stay flat)
+""":
+
+
+signal <- xts(rep(0, length(z)), order.by = index(z))
+
+upper_entry <- 2
+lower_entry <- -2
+exit_level  <- 0.5
+
+# a Z of +-2 involves 97.5% confidence interval
+
+
+for (i in window:length(z)) {
+
+  if (is.na(z[i])) next
+  
+  # Case 1: No position
+  if (signal[i-1] == 0) {
+    if (z[i] > upper_entry) {
+      signal[i] <- -1   # short spread
+    } else if (z[i] < lower_entry) {
+      signal[i] <- 1    # long spread
+    }
+    
+  # Case 2: Long spread (signal = 1)
+  } else if (signal[i-1] == 1) {
+    if (abs(z[i]) < exit_level) {
+      signal[i] <- 0
+    } else {
+      signal[i] <- 1
+    }
+    
+  # Case 3: Short spread (signal = -1)
+  } else if (signal[i-1] == -1) {
+    if (abs(z[i]) < exit_level) {
+      signal[i] <- 0
+    } else {
+      signal[i] <- -1
+    }
+  }
+}

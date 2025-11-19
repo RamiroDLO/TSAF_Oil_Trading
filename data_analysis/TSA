@@ -35,8 +35,19 @@ spread_xts <- xts(spread, order.by = index(log_prices))
 
 adf.test(spread)
 
+"""
+
+calculating my z score (~how unlikely is the point obersved from the mean given the volativity) will tell me if the spread is abnorammly high or low.
+
+If the spread is high, RBOB is overpriced vs HO.
+If the spread is low, RBOB is cheap vs HO.
+"""
+
+
 # Remove NAs just to be safe
 spread_clean <- na.omit(spread_xts)
+
+z <- (spread_clean - spread_mean) / spread_sd
 
 # AR(1) model: s_t = mu + phi * s_{t-1} + error
 ar1_model <- arima(spread_clean, order = c(1, 0, 0))

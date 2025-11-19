@@ -1,12 +1,12 @@
 # Stationarity: ADF tests
 
 # ADF test on log prices -- RESULTS IN NON-STATIONARITY
-adf.test(log_prices$SHEL)
-adf.test(log_prices$BP)
+adf.test(log_prices$Gasoline)
+adf.test(log_prices$HO)
 
 # ADF test on returns -- RESULTS IN STATIONARITY
-adf.test(returns$SHEL)
-adf.test(returns$BP)
+adf.test(returns$Gasoline)
+adf.test(returns$HO)
 
 """
 ADF on prices → p-value > 0.05 → cannot reject unit root → non-stationary
@@ -20,8 +20,9 @@ The Engle-Granger two-step method involves:
 
 The regression estimates β, the long-run equilibrium ratio between the two stocks
 """
-p1 <- as.numeric(log_prices$SHEL)
-p2 <- as.numeric(log_prices$BP)
+
+p1 <- as.numeric(log_prices$HO)
+p2 <- as.numeric(log_prices$Gasoline)
 
 eg_model <- lm(p1 ~ p2)
 summary(eg_model)

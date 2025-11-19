@@ -1,17 +1,16 @@
-# Get data from Yahoo
-symbols <- c("SHEL", "BP")
+symbols <- c("RB=F", "HO=F")
 getSymbols(symbols, src = "yahoo", from = "2000-01-01", to = "2025-01-01")
 
-# Extract adjusted closing prices and volumes
-data_pull <- merge(Ad(SHEL), Vo(SHEL), Ad(BP), Vo(BP))
-colnames(data_pull) <- c("SHEL_price", "SHEL_volume", "BP_price", "BP_volume")
+# Extract CLOSING prices
+data_pull <- na.omit(merge(Cl(`RB=F`), Cl(`HO=F`)))
+colnames(data_pull) <- c("Gasoline", "HO")
 
 # N/A Handling: Fill missing values with the mean of the previous 7 days
 fill_prev7 <- function(x) na.aggregate(x, FUN = function(v) mean(tail(na.omit(v), 7)))
 
 #Convert to log prices
-prices <- data_pull[, c("SHEL_price", "BP_price")]
-log_prices <- log(prices[, c("SHEL_price", "BP_price")])
+prices <- data_pull[, c("Gasoline", "HO")]
+log_prices <- log(prices[, c("Gasoline", "HO")])
 
 #Calculate Daily Returns
 returns <- diff(log_prices)
@@ -29,12 +28,13 @@ cor(returns)
 indexed_prices <- prices / as.numeric(prices[1,]) * 100
 
 autoplot(as.zoo(indexed_prices), facets = NULL) + 
-  ggplot2::scale_color_manual(values = c("SHEL_price" = "#FFD500", "BP_price" = "#009B00")
-  , labels = c("SHEL" , "BP" )) +
-  ggplot2::labs(title = "Normalized Prices (Rebased at 100 on 01/01/2010)", x = "", y = "") +
+  ggplot2::scale_color_manual(values = c("Gasoline" = "#FFD500", "HO" = "#009B00")
+  , labels = c("Gasoline" , "HO" )) +
+  ggplot2::labs(title = "Normalized Prices (Rebased at 100 on 01/01/2000)", x = "", y = "") +
   ggplot2::theme(
     plot.title = ggplot2::element_text(size = 20, hjust = 0.5, face = "bold"),
     legend.position = "top",
     legend.title = ggplot2::element_blank(),
     aspect.ratio = 0.4  # Makes x-axis longer, y-axis shorter (lower = wider)
   )
+

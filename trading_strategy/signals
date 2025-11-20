@@ -1,6 +1,6 @@
 #the spread as a starting point.
 
-window <- 60   # rolling window for spread statistics
+window <- 70   # rolling window for spread statistics
 
 spread_mean <- rollapply(spread, width = window, FUN = mean,
                          align = "right", fill = NA)
@@ -8,29 +8,7 @@ spread_mean <- rollapply(spread, width = window, FUN = mean,
 spread_sd   <- rollapply(spread, width = window, FUN = sd,
                          align = "right", fill = NA)
 
-z <- (spread - spread_mean) / spread_sd
-
-"""
- I have to choose  the rolling window for me to have enough history to trust my rolling mean and z value
-
-For each day in the dataset, we calculate the mean spread  an dthe volatily (standard deviation) .of the previous 60 days.
-
-My Z score is no more than the coeff of how many standard deviations away from the mean my current spread is.
-
-The quantitative finance literature ( Pole (2007), Gatev et al. (2006)) indicates that a good rule of thumb should be half life x 1.5  
-"""
-
-# Building the signals.
-"""
-A signal is simply an instruction to buy, sell, or hold a position.
-
-+1 → open / keep a long spread position
-
-–1 → open / keep a short spread position
-
-0 → close position (stay flat)
-""":
-
+z <- (spread_clean - spread_mean) / spread_sd
 
 signal <- xts(rep(0, length(z)), order.by = index(z))
 
@@ -39,7 +17,6 @@ lower_entry <- -2
 exit_level  <- 0.5
 
 # a Z of +-2 involves 97.5% confidence interval
-
 
 for (i in window:length(z)) {
 
@@ -70,3 +47,82 @@ for (i in window:length(z)) {
     }
   }
 }
+
+
+# P&L Calculation
+
+ret_rb <- returns$Gasoline
+ret_ho <- returns$HO
+
+common_index <- index(na.omit(merge(signal, ret_rb, ret_ho)))
+
+signal  <- signal[common_index]
+ret_rb  <- ret_rb[common_index]
+ret_ho  <- ret_ho[common_index]
+
+# Positions
+pos_rb <- ifelse(signal == 1,  1, ifelse(signal == -1, -1, 0))
+pos_ho <- ifelse(signal == 1, -beta, ifelse(signal == -1, beta, 0))
+
+pos_rb <- xts(pos_rb, order.by = common_index)
+pos_ho <- xts(pos_ho, order.by = common_index)
+
+# Gross portfolio returns
+port_ret_gross <- pos_rb * ret_rb + pos_ho * ret_ho
+
+# Transaction costs (0.25% per leg)
+pos_change_rb <- abs(pos_rb - lag(pos_rb))
+pos_change_ho <- abs(pos_ho - lag(pos_ho))
+
+tc_per_unit <- 0.0025  # 0.25%
+
+tc <- tc_per_unit * (pos_change_rb + pos_change_ho)
+
+# Net returns
+port_ret_net <- port_ret_gross - tc
+port_ret_net <- na.omit(port_ret_net)
+colnames(port_ret_net) <- "pairs_strategy"
+
+library(PerformanceAnalytics)
+
+charts.PerformanceSummary(port_ret_net,
+                          main="Pairs Trading Strategy: RBOB vs HO")
+
+table.AnnualizedReturns(port_ret_net)
+SharpeRatio.annualized(port_ret_net)
+maxDrawdown(port_ret_net)
+
+
+# Plot: Returns over time
+png("data_acquisition/returns_plot.png", width = 3600, height = 1500, res = 300)
+print(autoplot(returns["2018/"], facets = NULL) + 
+  ggplot2::scale_color_manual(values = c("Gasoline" = "#FFD500", "HO" = "#009B00"),
+                               labels = c("Gasoline", "Heating Oil")) +
+  ggplot2::labs(x = "", y = "Returns") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(size = 20, hjust = 0.5, face = "bold"),
+    legend.position = "top",
+    legend.title = ggplot2::element_blank(),
+    aspect.ratio = 0.4
+  ))
+dev.off()
+
+
+# Plot: Equity Curve (cumulative returns)
+equity_curve <- exp(cumsum(returns))  # Convert log returns to price index
+colnames(equity_curve) <- c("Gasoline_Equity", "HO_Equity")
+
+png("data_acquisition/equity_curve.png", width = 3600, height = 1500, res = 300)
+print(autoplot(equity_curve, facets = NULL) + 
+  ggplot2::scale_color_manual(values = c("Gasoline_Equity" = "#FFD500", "HO_Equity" = "#009B00"),
+                               labels = c("Gasoline", "Heating Oil")) +
+  ggplot2::labs(title = "Equity Curve (Cumulative Returns, Starting at $1)", x = "", y = "Portfolio Value") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(size = 20, hjust = 0.5, face = "bold"),
+    legend.position = "top",
+    legend.title = ggplot2::element_blank(),
+    aspect.ratio = 0.4
+  ))
+dev.off()

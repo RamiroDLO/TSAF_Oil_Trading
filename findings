@@ -13,7 +13,7 @@ From **yahoo finance** (library - quantmod) We pulled daily closing prices (X_pr
 Plot the indexes 
 
 
-# data_analysis > tsa_checks.r
+# data_analysis > TSA.r
 
 ## Stationarity check:
 Augmented Dickey–Fuller (ADF) to logarithmnic prices and returns.
@@ -40,32 +40,64 @@ If gasoline's and heating oil's closing prices move together over time , we shou
 
 We find evidence of cointegration between RBOB and HO: the ADF test on the residuals returns p ≈ 0.001, which we will consider significant for this analysis. We proceed with our trading implementation.”
 
-⭐ 2. AR(1) Model on the Spread
-phi (ar1) = 0.9851
+2. AR(1) Model on the Spread
 
+(phi (ar1) = 0.9851)
 
 This means:
 
 The spread is mean-reverting, because |phi| < 1
 
-But it is not extremely fast (phi close to 1 → slower reversion)
+But it is not extremely fast (phi close to 1 → slower reversion). In comparison to equities that have a faster correction, commodities tend to revert slower.
 
-Still: phi = 0.985 is good in commodity pairs — they tend to revert slower than equity pairs.
+3. Half-Life of Mean Reversion
 
-⭐ 3. Half-Life of Mean Reversion
-half-life = 46.1 days
+An important metric is half-life, that calculated how long does the spread take to move halfway back to its long-run mean.
+
+**half-life = 46.1 days**
+
+If the spread widens today, it takes ~46 trading days. Commodities usually follow longer cycles of supply and demand and suffer less volatility than equities. Nevertheless, this is longer in comparison to equities, which typically have half-lives of 5–20 days.
+
+# findings > Signals.r
+
+Once we have calculated our spread and checkled the existence of a relationship between gasoline and heating oil, we need to start setting windows to compare if in recent times the market has been bearish or too excited against its historical.
+
+Starting with the rolling window, we must have enough history to trust our rolling mean and z value. The quantitative finance literature ( Pole (2007), Gatev et al. (2006)) indicates that a good rule of thumb for the rolling window should be half life x 1.5. Therefore, with a half life of ~46 days, we set our rolling window for the previous **60 days**  
+
+For each day in the dataset, we calculate the mean spread,  and the volatility (standard deviation). Then, our Z score is no more than the coeff of how many standard deviations away from the mean my current spread is.
 
 
-This tells you:
+## Building the signals
 
-If the spread widens today, it takes ~46 trading days
 
-to move halfway back to its long-run mean.
+In order for an algorithm to operate, it needs rules to know when and how to trade. This is the concept of signals: on our case, a signal is simply an instruction to buy, sell, or hold a position. We
+use the z-score to build our signals as follows:
 
-Interpretation:
+        +1 → open / keep a long spread position. Buy gasoline and sell HO when the spread is abnormally low
 
-Not super fast (stocks often have 5–10 day half-lives)
+        *–1* → open / keep a short spread position. Sell gasoline and buy HO when the spread is abnormally high
 
-But not too slow either
+        0 → close position (stay flat) When the spread returns to normal, the trade must be closed.
 
-Commodity futures often revert slower due to macro supply/demand cycles
+Note: This model is trained to only hold one trade at a time. Therefore, if a signal is already active (long or short), the model will ignore any new signal until the position is closed (signal = 0).
+
+
+1. Annualized Return ≈ 14.9%
+
+This means:
+
+If your strategy was run continuously over the sample period
+
+reinvesting all profits
+
+the expected average yearly return is ~15%
+
+For a market-neutral (long–short) strategy that does not depend on market direction, this is a solid result.
+
+Pairs trading strategies typically target:
+
+5–20% annual returns
+
+with low correlation to the market
+
+So your return is good and in line with literature.

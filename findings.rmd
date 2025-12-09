@@ -12,12 +12,13 @@ output:
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, 
-                      fig.align = 'center', out.width = '120%')
+                      fig.align = 'center', out.width = '80%')
 ```
 \newpage
 
 # Project Overview
-This project aims to implement a pairs trading strategy on gasoline and heating oil futures contracts traded on the New York Mercantile Exchange (NYMEX). By leveraging time series analysis techniques, we seek to identify profitable trading opportunities based on the historical relationship between these two commodities.
+This project aims to implement a pairs trading strategy on gasoline and heating oil futures contracts traded on the New York Mercantile Exchange (NYMEX). By leveraging time series analysis techniques, we seek to identify profitable trading opportunities based on the historical relationship between these two commodities.Both are refined from the same crude oil in shared refineries, face identical supply shocks, refining constraints, and crack-spread dynamics, and are influenced by overlapping seasonal demand patterns. These fundamental links create a strong, persistent correlation, making temporary divergences in their price ratio attractive for mean-reversion-based trading.
+
 
 ## Data Acquisition
 
@@ -80,13 +81,13 @@ But it is not extremely fast (phi close to 1 → slower reversion). In compariso
 
 An important metric is half-life, that calculated how long does the spread take to move halfway back to its long-run mean.
 
-    **half-life = 46.1 days**
+  **half-life = 46.1 days**
 
 If the spread widens today, it takes ~46 trading days. Commodities usually follow longer cycles of supply and demand and suffer less volatility than equities. Nevertheless, this is longer in comparison to equities, which typically have half-lives of 5–20 days.
 
 ## Findings 
 
-Once we have calculated our spread and checkled the existence of a relationship between gasoline and heating oil, we need to start setting windows to compare if in recent times the market has been bearish or too excited against its historical.
+Once we have calculated our spread and checked the existence of a relationship between gasoline and heating oil, we need to start setting windows to compare if in recent times the market has been bearish or too excited against its historical.
 
 Starting with the rolling window, we must have enough history to trust our rolling mean and z value. The quantitative finance literature ( Pole (2007), Gatev et al. (2006)) indicates that a good rule of thumb for the rolling window should be half life x 1.5. Therefore, with a half life of ~46 days, we set our rolling window for the previous **60 days**  
 
@@ -128,7 +129,30 @@ By far, the most important metric for evaluating a trading strategy. It is calcu
 
 For a market-neutral (long–short) strategy that does not depend on market direction, this is a solid result in terms of returns. However, we require risk management improvements to be practical in a real-world setting. 
 
-We could improve the strategy with things as simple as stop-loss orders to limit downside risk.
+### Stop-Loss integration
 
-optimization strategies, limiting risk profile with stop-losses.
+As mentioned in the chapter before, we require risk management so that our strategy is applicable in real-world settings. 
+To further improve our strategy, we implement a simple stop-loss mechanic to limit the downside risk.
+
+A stop-loss triggers an order to automatically sell (or buy, depending on the position) a stock when its price reaches a predetermined price (or percentage loss), helping to limit potential losses by exiting the trade before further losses may occur.
+
+In our implementation, the stop-loss is integrated directly into the signal generation loop using z-score thresholds of +3 and -3, which represent extreme deviations (approximately 99.7% confidence interval under a normal distribution, assuming the spread is roughly Gaussian). Specifically:
+
+  -For a **long spread position** (signal = 1, where we've bought RBOB and sold HO expecting the spread to increase): If the z-score drops below -3 (indicating the spread has        narrowed adversely even further, against our bet), the stop-loss triggers an immediate exit by setting the signal to 0, closing the position to prevent deeper losses.
+  -For a **short spread position** (signal = -1, where we've sold RBOB and bought HO expecting the spread to decrease): If the z-score rises above +3 (indicating the spread has      widened adversely, against our bet), the stop-loss similarly forces an exit to 0.
+
+This mechanism is checked daily alongside the normal exit conditions (e.g., when |z| < 0.5). By using z-scores tied to the rolling spread volatility, the stop-loss adapts to changing market conditions rather than a fixed price, making it more robust for commodities like these. In backtesting, it helps reduce maximum drawdowns, though it may occasionally cut short recovering trades if volatility spikes.
+
+
+## Conclusion
+
+We have implemented a pairs trading strategy that leverages the mean-reversion properties of two closely related energy commodities: RBOB gasoline and heating oil futures, both traded on the NYMEX. By exploiting their strong historical correlation of approximately 70% in daily returns, driven by shared crude oil inputs, refining processes, and seasonal demand factors, we identified temporary divergences in their price spread through time series techniques, including stationary tests, Engle-Granger cointegration (with a significant ADF p-value of ~0.001 on residuals), and an AR(1) model revealing a mean-reversion half-life of 46.1 days.
+
+Backtesting on data from the year 2000 gave decent results: 13.5% annualized return, 25% volatility, and a Sharpe ratio of 0.537. That's pretty good for a market-neutral setup, beating average stock market returns (like 10-12% for the S&P) without relying on overall trends. We added a basic stop-loss at ±3 z-scores to cut losses, but it might close winning trades too early sometimes.
+
+From this project, we have learned a lot about how to handle time series data and explore new trading strategies for our personal Investments. We also have now deepend our knowledge in the energy-markets and gained a broather understanding of the underlying dependencies. 
+
+All in all we are very satisfied with our project. 
+
+
 

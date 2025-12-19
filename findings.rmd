@@ -1,98 +1,150 @@
 ---
-title: "Pairs Trading Strategy on Gasoline and Heating Oil Futures"
-author: "Group — Ramiro Díez-Liébana Orejas, Dominique Peytrignet"
+title: "Trading Strategies: Pairs Trading on Commodity Futures"
+author: "Ramiro Díez-Liébana Orejas, Dominique Peytrignet"
 subtitle: "Applying Time Series Concepts to the Energy Markets"
-date: "November 2025"
+date: "December 2025"
 output:
   pdf_document:
     latex_engine: xelatex
     toc: true
     toc_depth: 2
     number_sections: true
+    extra_dependencies: ["float"]
+
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, 
-                      fig.align = 'center', out.width = '80%')
+                      fig.align = 'center', out.width = '100%')
 ```
 \newpage
 
 # Project Overview
-This project aims to implement a pairs trading strategy on gasoline and heating oil futures contracts traded on the New York Mercantile Exchange (NYMEX). By leveraging time series analysis techniques, we seek to identify profitable trading opportunities based on the historical relationship between these two commodities.Both are refined from the same crude oil in shared refineries, face identical supply shocks, refining constraints, and crack-spread dynamics, and are influenced by overlapping seasonal demand patterns. These fundamental links create a strong, persistent correlation, making temporary divergences in their price ratio attractive for mean-reversion-based trading.
 
+This project serves as an educational exploration into quantitative trading strategies, specifically examining pairs trading in commodity futures markets. We selected gasoline (RBOB) and heating oil (HO) futures traded on the New York Mercantile Exchange (NYMEX) as our trading pair to apply time series analysis techniques and identify potential trading opportunities based on mean reversion.
+
+## Why Energy Commodities?
+
+Energy markets offer an ideal learning environment for pairs trading for several reasons:
+
+**Correlation**: Gasoline and heating oil are both refined from crude oil in the same refineries, creating a natural relationship. They have a **similar supply** (refinery shutdowns, crude oil price movements) and face the same refining constraints. These connections create a persistent correlation that makes temporary price diversions, perfect for mean-reversion strategies.
+
+**Acceptable Volatility with Structural Stability**: While energy prices fluctuate significantly, the underlying relationship between refined products remains relatively stable over long periods (the same amount of oil and heating will likely be needed in the future). This balance allows us to observe powerful enough signals without the instability that would make the strategy impractical or purely speculative.
+
+**Data Accessibility**: Historical futures **data for these contracts is readily available** through platforms like Yahoo Finance, making this analysis easy and good to implement what we have learned so far, without requiring expensive data subscriptions to other market-ready APIs.
+
+By studying this pair, we aim to get exposure to key quantitative finance concepts: **stationarity** testing, **cointegration** analysis, **mean reversion** modeling, and risk management. 
 
 ## Data Acquisition
 
-From **yahoo finance** (library - quantmod) We pulled daily closing prices (X_price) of futures contracts traded for Reformulated Blendstock for Oxygenate Blending, RBOB for short, a gasoline futures contract and the benchmark for wholesale gasoline (NYMEX: RB = F) and Heating Oil, a distillate fuel used for heating purposes (NYMEX: HO = F) going as far back as 2000. 
+From **yahoo finance** (library - _quantmod_) We pulled daily closing prices of futures contracts traded for the benchmark for wholesale **Gasoline**, or Reformulated Blendstock for Oxygenate Blending (_NYMEX_: RB = F), and **Heating Oil**, a distillate fuel used for heating purposes (_NYMEX_: HO = F), going as far back as 2000. 
 
 ## Preprocessing
 
-- **N/A Handling**: Fill missing values with the mean of the previous 7 days
+- **N/A Handling**: Fill missing values with the mean of the previous 7 days.
 
-- **Data Parity**:  Transformed daily _closing prices_ to logarithmic scale, to compare "apples to apples"
+- **Data Parity**:  Transformed daily _closing prices_ to logarithmic scale, to compare "apples to apples".
 
-- **Daily returns** : Log returns calculated
+- **Daily returns** : Log returns calculated.
 
-**Key Finding:** Correlation of returns = **+70%**
-
-```{r fuel-prices, fig.cap="Normalized Fuel Prices (Rebased at 100)"}
+\begin{center}
+\textbf{Key Finding: Correlation of returns = +70\%}
+\end{center}
+```{r fuel-prices, fig.cap="Normalized RBOB and HO Prices (Rebased at 100)",fig.align = 'center', out.width = '90%', fig.pos='H'}
 knitr::include_graphics("data_acquisition/fuel_prices_plot.png")
 ```
+
+
 ## Time Series Modelling 
 
 ### Stationarity check:
-Augmented Dickey–Fuller (ADF) to logarithmnic prices and returns.
 
-For both gasoline and heating oil log-prices, the ADF p-values is bigger than the conf interval (0.05), so we **cannot reject the null hypotshesis** (ie, the series is a random walk, what we want in a financial series)
+Before implementing any time series model, we must verify that our data is suitable for modeling. The **Augmented Dickey-Fuller** (ADF) test checks for **stationarity**: whether a series fluctuates around a constant mean without trending upward or downward over time. Non-stationary prices are typical for financial assets (also known as _random walks_), while stationary returns indicate predictable series that tend to return to a mean.
 
-```{r returns, fig.cap="Daily Log Returns (2018 onwards)"}
+So, we are aiming for **_stationary returns_** (I(0)) but **_non-stationary prices_** (I(1)).
+
+
+We apply the ADF test to both log-prices and returns for gasoline and heating oil:
+```{r adf-code-example, eval=FALSE, echo=TRUE}
+# ADF test on log prices
+adf.test(log_prices$Gasoline)
+adf.test(log_prices$HO)
+
+# ADF test on returns
+adf.test(returns$Gasoline)
+adf.test(returns$HO)
+```
+For both gasoline and heating oil log-prices, the ADF p-values is bigger than the conf interval (0.05), so we **cannot reject the null hypothesis** (ie, the series is a random walk, what we want in a financial series).
+
+```{r returns, fig.cap="Daily Log Returns (2018 onwards)",fig.align = 'center', out.width = '90%', fig.pos='H'}
 knitr::include_graphics("data_acquisition/returns_plot.png")
 ```
 
-
-For log-returns, ADF p-values are below 0.05, indicating stationarity (I(0)). So, non-stational prices and stational returns require then a cointegration testing.
+For log-returns however, **ADF p-values are below 0.05**, indicating stationarity (I(0)). So, non-stational prices and stational returns require then a **cointegration testing**.
 
 ### Cointegration 
 
-Pairst trading is all about  **assuming our variables move together over time**. To check this, we perform an Engle-Granger, that is both easy and powerful for pairs of vairables. If they indeed move together, the spread (residuals of the model) should move around a long-term average.
+Pairs trading is all about **assuming our variables move together over time**. To check this, we perform an _Engle-Granger_ two-step process, that is both easy and powerful for pairs of variables. If they indeed move together, the **spread** (residuals of the model) should move around a long-term average.
 
-If gasoline's and heating oil's closing prices move together over time , we should find the following from the model:
+If gasoline's and heating oil's closing prices move together over time, we should find the following from the model:
 
-- **(intercept)** → the base difference between the stocks
+- **(intercept)**: the base difference between the stocks.
 
-- **(slope)** : equilibrium hedge ratio: **How much does HO move when RBOB moves**
+- **(slope)**: equilibrium hedge ratio ~ **_How much does HO move when RBOB moves_**.
 
-- **R² (fit quality)** – not used for cointegration
+- **R² (fit quality)**: not used for cointegration.
 
-- **Residuals** → the spread (actual price - predicted price)
+- **Residuals**: the spread (actual price - predicted price).
+```{r engle-granger-table, echo=FALSE}
+# Load pre-calculated Engle-Granger results
+eg_results_table <- readRDS("data_analysis/eg_results_table.rds")
 
-We find evidence of cointegration between RBOB and HO: the ADF test on the residuals returns p ≈ 0.001, which we will consider significant for this analysis. We proceed with our trading implementation.”
+knitr::kable(eg_results_table, 
+             caption = "Engle-Granger Cointegration Test Results",
+             align = c('c', 'c', 'c'))
+```
+```{r eg-interpretation, echo=FALSE, results='asis'}
+# Load individual values for inline text
+eg_values <- readRDS("data_analysis/eg_values.rds")
+
+cat(sprintf("**Interpretation**: The ADF test on the spread residuals yields a p-value of 0.01, indicating **cointegration** between RBOB gasoline and heating oil. The hedge ratio (β) of 1.0613 represents the long-run equilibrium relationship: when RBOB log-prices increase by 1 unit, HO log-prices tend to increase by approximately 1.06 units. This ~1:1 relationship **confirms the correlation** between these two commodities.
+",
+            eg_values$adf_pvalue,
+            ifelse(eg_values$cointegrated, "**significant cointegration**", "no cointegration"),
+            eg_values$beta,
+            eg_values$beta * 100))
+```
+
 
 ### AR(1) Model on the Spread
 
-(phi (ar1) = 0.9851)
+\begin{center}
+\textbf{$\phi$ (AR1) = 0.9851}
+\end{center}
 
-This means:
-
-The spread is mean-reverting, because |phi| < 1
-
-But it is not extremely fast (phi close to 1 → slower reversion). In comparison to equities that have a faster correction, commodities tend to revert slower.
+The spread is mean-reverting, because **|phi| < 1**, but it is not extremely fast (phi close to 1 → slower reversion). In comparison to equities that have a faster correction, **commodities tend to revert slower**.
 
 ### Half-Life of Mean Reversion
 
-An important metric is half-life, that calculated how long does the spread take to move halfway back to its long-run mean.
+An important metric is **half-life**, that calculated how long does the spread take to move halfway back to its long-run mean.
 
-  **half-life = 46.1 days**
+\begin{center}
+\textbf{Half-life = 46.1 days}
+\end{center}
 
-If the spread widens today, it takes ~46 trading days. Commodities usually follow longer cycles of supply and demand and suffer less volatility than equities. Nevertheless, this is longer in comparison to equities, which typically have half-lives of 5–20 days.
+If the spread widens today, it takes ~46 trading days. Commodities usually follow longer cycles of supply and demand and suffer less volatility than equities. Nevertheless, this is **longer in comparison to equities**, which typically have half-lives of 5–20 days.
 
-## Findings 
+## Trading Strategy 
 
 Once we have calculated our spread and checked the existence of a relationship between gasoline and heating oil, we need to start setting windows to compare if in recent times the market has been bearish or too excited against its historical.
 
-Starting with the rolling window, we must have enough history to trust our rolling mean and z value. The quantitative finance literature ( Pole (2007), Gatev et al. (2006)) indicates that a good rule of thumb for the rolling window should be half life x 1.5. Therefore, with a half life of ~46 days, we set our rolling window for the previous **60 days**  
+Starting with the rolling window, we must have enough history to trust our rolling mean and z value. The quantitative finance literature ( Pole (2007), Gatev et al. (2006)) indicates that a good rule of thumb for the rolling window: "_should be half life x 1.5_". Therefore, with a half life of ~46 days, we set our rolling window for the previous **60 days**.
 
-For each day in the dataset, we calculate the mean spread,  and the volatility (standard deviation). Then, our Z score is no more than the coeff of how many standard deviations away from the mean my current spread is.
+For each day in the dataset, we calculate the **mean spread**,  and the **volatility** (standard deviation). Then, our Z score is no more than the coeff of how many standard deviations away from the mean my current spread is.
 
+By calculating the **z score** (~how unlikely is the point observed from the mean given the volatility) will tell me if the spread is **abnormally high or low**.
+
+If the spread is high, Gasoline is overpriced vs Heating Oil.
+If the spread is low, Gasoline is cheap vs Heating Oil.
 
 ### Building the signals
 
@@ -108,51 +160,42 @@ Note: This model is trained to *only* hold one trade at a time. Therefore, if a 
 
 ### P&L Calculation
 
-Our model is worth the amount of money it can make. Therefore, we need to calculate the profit and loss (P&L) of our strategy. WE have three metrics to evaluate it:
+Our model is worth the amount of money it can make. Therefore, we need to calculate the profit and loss (P&L) of our strategy. We have three metrics to evaluate it:
 
-- **Annualized return**: Average return per year ≈ **13.5%** 
+- **Annualized return**: **13.5%** 
 
     This is assuming the model is operating continuously with no interruptions, no delays, and reinvested profits.
     For a market-neutral (long–short) strategy that does not depend on market direction, **this is a solid result considering annualized result of major indices** roams around 10-12% during the same period
 
-- **Annualized volatility**: Standard deviation of returns per year ≈ **25.0%**
+- **Annualized volatility**: **25.0%**
 
-    This is the standard deviation of the returns.
-
-
-- **Sharpe Ratio**: Risk-adjusted return (higher is better)
-
-By far, the most important metric for evaluating a trading strategy. It is calculated as the ratio of annualized return to annualized volatility (return per unit of risk)
-
-    Sharpe Ratio = Annualized Return / Annualized Volatility ≈ 0.537
+    The standard deviation of the returns per year.
 
 
-For a market-neutral (long–short) strategy that does not depend on market direction, this is a solid result in terms of returns. However, we require risk management improvements to be practical in a real-world setting. 
+- **Sharpe Ratio**: 0.537
+
+  By far, the most important metric for evaluating a trading strategy. It is calculated as the ratio of annualized return to annualized volatility (return per unit of risk). Esentially, the **risk-adjusted return of the strategy**.
+  
+  For a market-neutral (long–short) strategy that does not depend on market direction, this is a solid result in terms of returns. However, it requires **risk management improvements** to be practical in a real-world setting. 
 
 ### Stop-Loss integration
 
-As mentioned in the chapter before, we require risk management so that our strategy is applicable in real-world settings. 
-To further improve our strategy, we implement a simple stop-loss mechanic to limit the downside risk.
+To further improve our strategy, we implement  some **stop-loss** mechanics to limit the downside risk.
 
 A stop-loss triggers an order to automatically sell (or buy, depending on the position) a stock when its price reaches a predetermined price (or percentage loss), helping to limit potential losses by exiting the trade before further losses may occur.
 
-In our implementation, the stop-loss is integrated directly into the signal generation loop using z-score thresholds of +3 and -3, which represent extreme deviations (approximately 99.7% confidence interval under a normal distribution, assuming the spread is roughly Gaussian). Specifically:
+In our implementation, the stop-loss is **integrated directly into the signal generation** loop using z-score thresholds of +3 and -3, which represent extreme deviations (approximately 99.7% confidence interval under a normal distribution, assuming the spread is roughly Gaussian). Specifically:
 
-  -For a **long spread position** (signal = 1, where we've bought RBOB and sold HO expecting the spread to increase): If the z-score drops below -3 (indicating the spread has        narrowed adversely even further, against our bet), the stop-loss triggers an immediate exit by setting the signal to 0, closing the position to prevent deeper losses.
-  -For a **short spread position** (signal = -1, where we've sold RBOB and bought HO expecting the spread to decrease): If the z-score rises above +3 (indicating the spread has      widened adversely, against our bet), the stop-loss similarly forces an exit to 0.
+- For a **long spread position** (signal = 1, where we've bought Gasoline and sold Heating Oil expecting the spread to increase): If the z-score drops below -3 (indicating the spread has        narrowed adversely even further, against our bet), the stop-loss triggers an immediate exit by setting the signal to 0, closing the position to prevent deeper losses.
+  
+-  For a **short spread position** (signal = -1, where we've sold Gasoline and bought Heating Oil expecting the spread to decrease): If the z-score rises above +3 (indicating the spread has      widened adversely, against our bet), the stop-loss similarly forces an exit to 0.
 
 This mechanism is checked daily alongside the normal exit conditions (e.g., when |z| < 0.5). By using z-scores tied to the rolling spread volatility, the stop-loss adapts to changing market conditions rather than a fixed price, making it more robust for commodities like these. In backtesting, it helps reduce maximum drawdowns, though it may occasionally cut short recovering trades if volatility spikes.
 
 
 ## Conclusion
 
-We have implemented a pairs trading strategy that leverages the mean-reversion properties of two closely related energy commodities: RBOB gasoline and heating oil futures, both traded on the NYMEX. By exploiting their strong historical correlation of approximately 70% in daily returns, driven by shared crude oil inputs, refining processes, and seasonal demand factors, we identified temporary divergences in their price spread through time series techniques, including stationary tests, Engle-Granger cointegration (with a significant ADF p-value of ~0.001 on residuals), and an AR(1) model revealing a mean-reversion half-life of 46.1 days.
+**Backtesting** on data from the year 2000 gave decent results: **13.5% annualized return**, 25% volatility, and a Sharpe ratio of 0.537. That's pretty good for a market-neutral setup, beating average stock market returns (like 10-12% for the S&P) without relying on overall trends. We added a basic stop-loss at ±3 z-scores to cut losses, but it might close winning trades too early sometimes.
 
-Backtesting on data from the year 2000 gave decent results: 13.5% annualized return, 25% volatility, and a Sharpe ratio of 0.537. That's pretty good for a market-neutral setup, beating average stock market returns (like 10-12% for the S&P) without relying on overall trends. We added a basic stop-loss at ±3 z-scores to cut losses, but it might close winning trades too early sometimes.
-
-From this project, we have learned a lot about how to handle time series data and explore new trading strategies for our personal Investments. We also have now deepend our knowledge in the energy-markets and gained a broather understanding of the underlying dependencies. 
-
-All in all we are very satisfied with our project. 
-
-
+After reasearching for this project, we have learned a lot about how to handle time series and explore new trading strategies for our personal Investments. It feels as if a proffesionalized trading strategy is not so foreign now. We also have learned about the energy-markets and gained a broather understanding of the underlying dependencies between commodities. Still, it is surprising how something as important as energy prices can be fiddled with relatively simple statistical tools.
 

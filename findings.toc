@@ -1,0 +1,14 @@
+\contentsline {section}{\numberline {1}Project Overview}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Why Energy Commodities?}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Data Acquisition}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Preprocessing}{2}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Time Series Modelling}{3}{subsection.1.4}%
+\contentsline {subsubsection}{\numberline {1.4.1}Stationarity check:}{3}{subsubsection.1.4.1}%
+\contentsline {subsubsection}{\numberline {1.4.2}Cointegration}{4}{subsubsection.1.4.2}%
+\contentsline {subsubsection}{\numberline {1.4.3}AR(1) Model on the Spread}{5}{subsubsection.1.4.3}%
+\contentsline {subsubsection}{\numberline {1.4.4}Half-Life of Mean Reversion}{5}{subsubsection.1.4.4}%
+\contentsline {subsection}{\numberline {1.5}Trading Strategy}{5}{subsection.1.5}%
+\contentsline {subsubsection}{\numberline {1.5.1}Building the signals}{5}{subsubsection.1.5.1}%
+\contentsline {subsubsection}{\numberline {1.5.2}P\&L Calculation}{6}{subsubsection.1.5.2}%
+\contentsline {subsubsection}{\numberline {1.5.3}Stop-Loss integration}{6}{subsubsection.1.5.3}%
+\contentsline {subsection}{\numberline {1.6}Conclusion}{6}{subsection.1.6}%

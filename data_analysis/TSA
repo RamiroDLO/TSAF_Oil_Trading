@@ -58,3 +58,60 @@ phi <- ar1_model$coef["ar1"]
 # Half-life of mean reversion
 half_life <- -log(2) / log(abs(phi))
 half_life
+
+# ENGLE-GRANGER RESULTS TABLE
+
+library(tseries)
+
+# Calculate all necessary values
+p1 <- as.numeric(log_prices$HO)
+p2 <- as.numeric(log_prices$Gasoline)
+
+eg_model <- lm(p1 ~ p2)
+spread <- eg_model$residuals
+adf_spread <- adf.test(spread)
+
+# Create the results table
+eg_results_table <- data.frame(
+  Parameter = c("Intercept", 
+                "Slope (β)", 
+                "R²", 
+                "Adj. R²",
+                "ADF Statistic (Spread)", 
+                "ADF P-Value"),
+  Value = c(
+    round(eg_model$coefficients[1], 4),
+    round(eg_model$coefficients[2], 4),
+    round(summary(eg_model)$r.squared, 4),
+    round(summary(eg_model)$adj.r.squared, 4),
+    round(adf_spread$statistic, 4),
+    round(adf_spread$p.value, digits = 2)
+  ),
+  Interpretation = c(
+    "Base price difference between HO and RBOB",
+    "Hedge ratio: HO change per 1% RBOB change",
+    "Proportion of variance explained",
+    "Adjusted R² for number of predictors",
+    "Test for spread stationarity",
+    ifelse(adf_spread$p.value < 0.05, 
+           "Significant cointegration (p < 0.05)", 
+           "No cointegration detected")
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Save as RDS file
+saveRDS(eg_results_table, "data_analysis/eg_results_table.rds")
+
+# save individual values 
+eg_values <- list(
+  intercept = eg_model$coefficients[1],
+  beta = eg_model$coefficients[2],
+  r_squared = summary(eg_model)$r.squared,
+  adj_r_squared = summary(eg_model)$adj.r.squared,
+  adf_statistic = adf_spread$statistic,
+  adf_pvalue = adf_spread$p.value,
+  cointegrated = adf_spread$p.value < 0.05
+)
+
+saveRDS(eg_values, "data_analysis/eg_values.rds")

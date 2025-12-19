@@ -11,6 +11,4 @@ Time Series Analysis (stationarity & cointegration) - (data_analysis)
 
 Pairs Trading Strategy & Backtest (trading)
 
-Results & Discussion
-
 Conclusion
